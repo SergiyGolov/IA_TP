@@ -105,7 +105,7 @@ if __name__ == '__main__':
             print(f"\tHeuristic {inspect.getsource(h)}")
             spaces=[""]
             for state in findShortestPathFromAtoB(cityA, cityB, h):
-                print(f"\t\t{''.join(spaces)}{'⮡' if len(spaces)>1 else ''}{state}")
+                print(f"\t\t{''.join(spaces)}{'⮡ ' if len(spaces)>1 else ''}{state}")
                 spaces.append(" ")
             print()
         print()
