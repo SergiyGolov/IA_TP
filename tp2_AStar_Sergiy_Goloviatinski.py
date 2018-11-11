@@ -32,6 +32,15 @@ def initCityConnections(cityDict, connectionFileName):
             cityDict[cityB].addNeighbour(cityDict[cityA], int(distance))
 
 
+def getCityStatesNames(collection):
+    return [citystate.city.name for citystate in collection]
+
+def getCityStateFromName(cityName,collection):
+    for citystate in collection:
+         if citystate.city.name==cityName:
+             return citystate
+    return None
+
 # g(x) s'accumulle avec chaque noeud visité (somme des distances parcourues) et h(x) est donné dans le pdf (se réduit à chaque noeud visité vu qu'on se rapproche de la ville d'arrivée)
 # Fortement inspiré de https://fr.wikipedia.org/wiki/Algorithme_A*
 def findShortestPathFromAtoB(cityA, cityB, h, printPathInfo=True):
@@ -61,7 +70,9 @@ def findShortestPathFromAtoB(cityA, cityB, h, printPathInfo=True):
 
         for neighbourCity, neighbourDistance in neighbours.items():
             neighbourCityState=CityState(neighbourCity,cityState.g+neighbourDistance,h(neighbourCity,cityB) ,cityState)
-            if neighbourCityState in closedList and neighbourCityState.f > closedList[closedList.index(neighbourCityState)].f or neighbourCityState in openList and neighbourCityState.f > openList[openList.index(neighbourCityState)].f:
+            name=neighbourCityState.city.name
+
+            if name in getCityStatesNames(closedList) and neighbourCityState.f >getCityStateFromName(name,closedList).f or name in getCityStatesNames(openList) and neighbourCityState.f > getCityStateFromName(name,openList).f:
                 pass
             else:
                 heapq.heappush(openList,neighbourCityState)
