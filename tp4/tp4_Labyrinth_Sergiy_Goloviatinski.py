@@ -5,6 +5,15 @@ import numpy as np
 import random
 import matplotlib.pyplot as plt
 
+from deap import base
+from deap import creator
+from deap import tools
+from deap import algorithms
+
+WIDTH=5 
+HEIGHT=5
+
+
 def generate_labyrinth(width, height, wall_ratio=0.3):
     """ Randomly generates the labyrinth matrix, the values are:
     0 if the cell is free
@@ -73,19 +82,63 @@ def decodePath(start,relativePath):
             absoluteCoorPath.append((absoluteCoorPath[-1][0]-1,absoluteCoorPath[-1][1]))
     return absoluteCoorPath[1:]
 
+def fitness(individual,grid,start_cell,end_cell):
+    absoluteCoorPath=decodePath(start_cell,individual)
+    fitness=0
+    for gene in absoluteCoorPath:
+        fitness+=abs(gene[0]-end_cell[0])+abs(gene[1]-end_cell[1])
+        # if grid[coord]==1:
+        #     fitness+=1000
+        # if coord[0]<0 or coord[1]<0 or coord[0]>=WIDTH or coord[1]>=HEIGHT:
+        #     fitness+=1000
+    
+    fitness/=len(individual)
+    fitness+=len(individual)
+    
+    return (fitness,)
+
+def generate_gene(grid,previous_cell):
+    notValid=True
+    while notValid:
+        gene=random.choice(['L','D','R','U'])
+        coord=decodePath(previous_cell,[gene])[0]
+        if coord[0] >= 0 and coord[1] >= 0 and coord[0] <HEIGHT and coord[1]<WIDTH and grid[coord]!=1:
+            notValid=False
+
+    return gene
 
 if __name__=="__main__":
-    width=10 
-    height=10
+
+    grid, start_cell, end_cell = generate_labyrinth(WIDTH, HEIGHT)
     # donc pos min = (0,0) et pos max = (9,9)
 
-    grid, start_cell, end_cell = generate_labyrinth(width, height)
+    toolbox = base.Toolbox()
+    toolbox.register("fitness", fitness)
+    creator.create("FitnessMin", base.Fitness, weights=(-1.0,)) #the algorithm has to minimize the fitness
+    creator.create("Individual", list, fitness=creator.FitnessMin) 
+    toolbox.register("mate", tools.cxUniform)
+    toolbox.register("mutate", tools.mutShuffleIndexes,indpb=0.1)
+    toolbox.register("select", tools.selTournament)
+    toolbox.register("init_gene", generate_gene, grid,start_cell)
+    toolbox.register("init_individual", tools.initRepeat, creator.Individual, toolbox.init_gene, 1)
+    toolbox.register("init_population", tools.initRepeat, list, toolbox.init_individual)
+    
+    pop = toolbox.init_population(n=10)
+   
+    # Evaluate the entire population
+    fitnesses = map(lambda ind: toolbox.fitness(ind,grid,start_cell,end_cell),pop)
+    for ind, fit in zip(pop, fitnesses):
+        ind.fitness.values = fit
+        print(f"fitness:{ind.fitness.values}  {ind}")
+
+
+
+   
 
     solution=[start_cell]
-    solution+=decodePath(start_cell,["L","D","D","D","R","R","U"])
+    solution+=decodePath(start_cell,pop[0])
     solution.append(end_cell)
 
-    print(start_cell)
-    print(end_cell)
+
     
-    display_labyrinth(grid, start_cell, end_cell,solution=solution)
+    display_labyrinth(grid, start_cell, end_cell)
