@@ -87,10 +87,7 @@ def fitness(individual,grid,start_cell,end_cell):
     fitness=0
     for gene in absoluteCoorPath:
         fitness+=abs(gene[0]-end_cell[0])+abs(gene[1]-end_cell[1])
-        # if grid[coord]==1:
-        #     fitness+=1000
-        # if coord[0]<0 or coord[1]<0 or coord[0]>=WIDTH or coord[1]>=HEIGHT:
-        #     fitness+=1000
+
     
     fitness/=len(individual)
     fitness+=len(individual)
@@ -99,6 +96,7 @@ def fitness(individual,grid,start_cell,end_cell):
 
 def generate_gene(grid,previous_cell):
     notValid=True
+    # TO-DO: do something coherent if there are walls all around previous_cell
     while notValid:
         gene=random.choice(['L','D','R','U'])
         coord=decodePath(previous_cell,[gene])[0]
