@@ -109,8 +109,8 @@ def fitness(individual, grid, start_cell, end_cell):
     if absoluteCoorPath[-1] == end_cell:
         return (fitness,)
 
-    for gene in absoluteCoorPath:
-        fitness += abs(gene[0]-end_cell[0])+abs(gene[1]-end_cell[1])
+    for cell in absoluteCoorPath:
+        fitness += abs(cell[0]-end_cell[0])+abs(cell[1]-end_cell[1])
         # if gene[0] < 0 or gene[1] < 0 or gene[0] >= HEIGHT or gene[1] >= WIDTH or grid[gene] == 1:
         #     fitness += 100000
 
@@ -159,8 +159,16 @@ def generate_gene(grid, previous_cell, individual=None):
 if finds a invalide gene (wall/outside of the grid), cuts off the genes from the invalid gene to the end of the individual dna
 TO-DO: use this after mutation
 '''
-def purge_genome(individual):
-    pass
+def purge_genome(grid,start,individual):
+    absolutePath=decodePath(start,individual)
+    i=0
+    for cell in absolutePath:
+        if cell[0] < 0 or cell[1] < 0 or cell[0] >= HEIGHT or cell[1] >= WIDTH or grid[cell] == 1:
+            individual[i:]=[]
+            break
+        i+=1
+            
+
 
 
 if __name__ == "__main__":
@@ -203,7 +211,7 @@ if __name__ == "__main__":
                 ind.append(generate_gene(
                     grid, decodePath(start_cell, ind)[-1], ind))
                 if ind[-1]=='IGNORE':
-                    ind=ind[:-1]
+                    ind.pop()
 
             offspring = toolbox.select(pop, select_nb, tourn_size)
 
@@ -212,9 +220,15 @@ if __name__ == "__main__":
                 if random.random() < cxProba:
                     toolbox.mate(child1, child2, 0.5)
 
-            for mutant in offspring:
+            i=0
+            for ind in offspring:
                 if random.random() < mutProba:
-                    toolbox.mutate(mutant)
+                    toolbox.mutate(ind)
+                purge_genome(grid,start_cell,ind) # verify that the individual is valid after the mutaiton
+                if len(ind)==0:
+                    print("DEL")
+                    del offspring[i] # does it work?
+                i+=1
 
             # childs = algorithms.varAnd(offspring, toolbox, cxProba, mutProba)
 
@@ -229,6 +243,7 @@ if __name__ == "__main__":
             best = pop[fitnesses.index(min_fit)]
             pop = sorted(pop, key=lambda ind: -1*ind.fitness.values[0])
             pop[:select_nb] = offspring
+            
 
             winners = [ind for ind in pop if ind.fitness.values[0] == 0.0]
 
