@@ -16,7 +16,7 @@ import time
 
 WIDTH = 5
 HEIGHT = 5
-MAX_TIME = 3
+MAX_TIME = 60
 
 
 class Timer:
@@ -178,8 +178,15 @@ def purge_genome(grid, start, individual):
 
 if __name__ == "__main__":
 
-    grid, start_cell, end_cell = generate_labyrinth(WIDTH, HEIGHT)
-    # donc pos min = (0,0) et pos max = (9,9)
+    grid = np.load("grids/grid30.npy")
+    start_cell = (0,0)
+    h = grid.shape[0]
+    w = grid.shape[1]
+    end_cell = (h - 1, w - 1)
+    WIDTH=w
+    HEIGHT=h
+    # grid, start_cell, end_cell = generate_labyrinth(WIDTH, HEIGHT)
+
     toolbox = base.Toolbox()
     toolbox.register("fitness", fitness)
     # the algorithm has to minimize the fitness
@@ -295,7 +302,7 @@ if __name__ == "__main__":
         ind = best[0]
         solution = decodePath(start_cell, ind)
         print(solution)
-
+        print(f"length: {len(solution)}")
         display_labyrinth(grid, start_cell, end_cell, solution)
     else:
         display_labyrinth(grid, start_cell, end_cell)
