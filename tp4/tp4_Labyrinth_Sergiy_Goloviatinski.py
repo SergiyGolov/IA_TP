@@ -106,14 +106,13 @@ def decodePath(start, relativePath):
     return absoluteCoorPath
 
 
-def fitness(individual, grid, start_cell, end_cell):
+def fitness(individual, start_cell, end_cell):
     absoluteCoorPath = decodePath(start_cell, individual)
 
     fitness = len(individual)
 
     # = 0 if end cell is reached
-    fitness += (abs(end_cell[0]-absoluteCoorPath[-1][0]) +
-                abs(end_cell[1]-absoluteCoorPath[-1][1]))
+    fitness += (abs(end_cell[0]-absoluteCoorPath[-1][0])+abs(end_cell[1]-absoluteCoorPath[-1][1]))
 
 
     return (fitness,)
@@ -199,7 +198,7 @@ if __name__ == "__main__":
 
     # Evaluate the entire population
     fitnesses = map(lambda ind: toolbox.fitness(
-        ind, grid, start_cell, end_cell), pop)
+        ind, start_cell, end_cell), pop)
     for ind, fit in zip(pop, fitnesses):
         ind.fitness.values = fit
         # print(f"fitness:{ind.fitness.values}  {ind}")
@@ -266,8 +265,8 @@ if __name__ == "__main__":
             # childs = algorithms.varAnd(offspring, toolbox, cxProba, mutProba)
 
             fitnesses = map(lambda ind: toolbox.fitness(
-                ind, grid, start_cell, end_cell), offspring)
-            for ind, fit in zip(offspring, fitnesses):
+                ind, start_cell, end_cell), pop)
+            for ind, fit in zip(pop, fitnesses):
                 ind.fitness.values = fit
 
             pop = sorted(pop, key=lambda ind: ind.fitness.values[0])
@@ -296,6 +295,7 @@ if __name__ == "__main__":
         ind = best[0]
         solution = decodePath(start_cell, ind)
         print(solution)
+
         display_labyrinth(grid, start_cell, end_cell, solution)
     else:
         display_labyrinth(grid, start_cell, end_cell)
