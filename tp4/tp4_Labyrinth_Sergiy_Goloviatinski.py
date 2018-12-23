@@ -97,9 +97,9 @@ if __name__ == "__main__":
         HEIGHT = h
         MAX_TIME = int(sys.argv[2])
     else:
-        WIDTH = 6
-        HEIGHT = 6
-        MAX_TIME = 1
+        WIDTH = 5
+        HEIGHT = 5
+        MAX_TIME = 0.25
         grid, start_cell, end_cell = generate_labyrinth(WIDTH, HEIGHT)
 
     solve_labyrinth(grid, start_cell, end_cell, MAX_TIME)

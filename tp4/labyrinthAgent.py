@@ -33,8 +33,8 @@ class LabyrinthAgent(object):
         self.max_time_s = max_time_s
         self.labyWidth = grid.shape[1]
         self.labyHeight = grid.shape[0]
-        self.cellSurrounded(self.start_cell)
-        self.cellSurrounded(self.end_cell)
+        self.testCellSurrounded(self.start_cell)
+        self.testCellSurrounded(self.end_cell)
 
     def decodePath(self, relativePath, start=None):
         if start == None:
@@ -56,7 +56,7 @@ class LabyrinthAgent(object):
                     (absoluteCoorPath[-1][0]-1, absoluteCoorPath[-1][1]))
         return absoluteCoorPath
 
-    def cellSurrounded(self, cell):
+    def testCellSurrounded(self, cell):
         '''
         Raises an exception if a cell is surrounded by walls
         '''
@@ -93,8 +93,19 @@ class LabyrinthAgent(object):
 
         return (fitness,)
 
-    def generate_gene(self):
+    def generate_gene(self, cell=None):
         possible_choices = ['L', 'D', 'R', 'U']
+
+        if cell is not None:
+            if cell[0] == 0 or self.grid[cell[0]-1, cell[1]] == 1:
+                possible_choices.remove('U')
+            if cell[1] == 0 or self.grid[cell[0], cell[1]-1] == 1:
+                possible_choices.remove('L')
+            if cell[0] == self.labyHeight-1 or self.grid[cell[0]+1, cell[1]] == 1:
+                possible_choices.remove('D')
+            if cell[1] == self.labyWidth-1 or self.grid[cell[0], cell[1]+1] == 1:
+                possible_choices.remove('R')
+
         gene = random.choice(possible_choices)
 
         return gene
@@ -115,16 +126,16 @@ class LabyrinthAgent(object):
         for cell in absolutePath:
             # ignore path after solution
             if cell == self.end_cell:
-                individual[i+1:] = []
+                individual[i:] = []
 
             # eliminate path portion that passes through same cell as a previous one
             if cell in absolutePath[:i]:
-                individual[i:] = []
+                individual[i-1:] = []
                 break
 
             # eliminates path portion after invalid cell (outside grid, wall)
             if cell[0] < 0 or cell[1] < 0 or cell[0] >= self.labyHeight or cell[1] >= self.labyWidth or self.grid[cell] == 1:
-                individual[i:] = []
+                individual[i-1:] = []
                 break
 
             i += 1
@@ -138,13 +149,19 @@ class LabyrinthAgent(object):
         toolbox.register("mate", tools.cxOnePoint)
         toolbox.register("mutate", tools.mutShuffleIndexes, indpb=0.05)
         toolbox.register("select", tools.selRoulette)
-        toolbox.register("init_gene", self.generate_gene)
+        toolbox.register("init_gene", self.generate_gene, self.start_cell)
         toolbox.register("init_individual", tools.initRepeat,
                          creator.Individual, toolbox.init_gene, 1)
         toolbox.register("init_population", tools.initRepeat,
                          list, toolbox.init_individual)
 
-        pop = toolbox.init_population(n=self.labyHeight*self.labyWidth*4)
+        if self.max_time_s < 1:
+            time_factor = 1
+        else:
+            time_factor = self.max_time_s
+
+        pop = toolbox.init_population(
+            n=self.labyHeight*self.labyWidth*time_factor)
 
         # Evaluate the entire population
         fitnesses = map(lambda ind: toolbox.fitness(
@@ -155,12 +172,18 @@ class LabyrinthAgent(object):
         remaining_time = self.max_time_s
         cxProba = 0.7
         mutProba = 0.1
-        select_nb = int(len(pop)/5)
+
+        select_nb = int(len(pop)/10)
+
+        if select_nb < 4:
+            select_nb = 4
 
         best = []
         winners = []
 
-        lastGenerationTop3 = []
+        lastGenerationTop = []
+
+        lastGenerationTopCount = 1
 
         episode_count = 0
 
@@ -175,12 +198,14 @@ class LabyrinthAgent(object):
 
                 # Apply crossover on the offspring
                 for child1, child2 in zip(offspring[::2], offspring[1::2]):
-                    if random.random() < cxProba:
-                        toolbox.mate(child1, child2)
+                    if len(child1) > 1 and len(child2) > 1:
+                        if random.random() < cxProba:
+                            toolbox.mate(child1, child2)
 
                 for ind in offspring:
-                    if random.random() < mutProba:
-                        ind = toolbox.mutate(ind)[0]
+                    if len(ind) > 1:
+                        if random.random() < mutProba:
+                            ind = toolbox.mutate(ind)[0]
 
                 fitnesses = map(lambda ind: toolbox.fitness(ind), pop)
                 for ind, fit in zip(pop, fitnesses):
@@ -197,11 +222,11 @@ class LabyrinthAgent(object):
                 if len(best) > 0:
                     pop += deepcopy(best)
 
-                if len(lastGenerationTop3) > 0 and episode_count > self.labyHeight:
-                    pop += lastGenerationTop3
+                if len(lastGenerationTop) > 0 and episode_count > self.labyHeight:
+                    pop += lastGenerationTop
 
                 if episode_count > self.labyHeight-1:
-                    lastGenerationTop3 = deepcopy(pop[-3:])
+                    lastGenerationTop = deepcopy(pop[-lastGenerationTopCount:])
 
                 # it means that the manhattan distance from the last cell to the end is 0
                 winners = [
