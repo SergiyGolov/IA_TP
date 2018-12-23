@@ -81,6 +81,7 @@ def solve_labyrinth(grid, start_cell, end_cell, max_time_s):
         agent = LabyrinthAgent(grid, start_cell, end_cell, max_time_s)
         display_labyrinth(grid, start_cell, end_cell, agent.solve())
     except NoValidPathException as e:
+        # If the random generated grid has his start/end cell surrounded by walls
         print(e)
         display_labyrinth(grid, start_cell, end_cell)
 

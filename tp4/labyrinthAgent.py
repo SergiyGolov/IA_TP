@@ -38,6 +38,9 @@ class LabyrinthAgent(object):
         self.pathLimit = int((self.labyHeight+self.labyWidth)*1.5)
 
     def decodePath(self, relativePath, start=None):
+        """
+        Converts a chromosome ("relative path") to a list of cells ("absolute path")
+        """
         if start == None:
             start = self.start_cell
 
@@ -63,7 +66,7 @@ class LabyrinthAgent(object):
 
     def testCellSurrounded(self, cell):
         """
-        Raises an exception if a cell is surrounded by walls
+        Raises an exception if a cell is surrounded by walls and corners
         """
 
         possible_choices = ['L', 'D', 'R', 'U']
@@ -122,6 +125,8 @@ class LabyrinthAgent(object):
                 return "CUT"
             path = self.decodePath(individual)
             cell = path[-1]
+
+            # removes non valid choices (walls, already visited cell or outside of grid)
             if cell[0] == 0 or self.grid[cell[0]-1, cell[1]] == 1 or (cell[0]-1, cell[1]) in path:
                 possible_choices.remove('U')
             if cell[1] == 0 or self.grid[cell[0], cell[1]-1] == 1 or (cell[0], cell[1]-1) in path:
@@ -132,7 +137,7 @@ class LabyrinthAgent(object):
                 possible_choices.remove('R')
 
         if len(possible_choices) > 0:
-            if individual is not None and random.random() < 0.75:
+            if individual is not None and random.random() < 0.5:
                 directionsWithScores = {}
                 for direction in possible_choices:
                     directionsWithScores[direction] = self.manhattanDistanceToEnd(
@@ -166,9 +171,9 @@ class LabyrinthAgent(object):
 
         i = 0
         for cell in absolutePath:
-            # ignore path after solution
-            if cell == self.end_cell:
-                individual[i+1:] = []
+            # # ignore path after solution
+            # if cell == self.end_cell:
+            #     individual[i+1:] = []
 
             # eliminates path portion after invalid cell (outside grid, wall)
             if cell[0] < 0 or cell[1] < 0 or cell[0] >= self.labyHeight or cell[1] >= self.labyWidth or self.grid[cell] == 1:
@@ -198,7 +203,7 @@ class LabyrinthAgent(object):
         toolbox.register("init_population", tools.initRepeat,
                          list, toolbox.init_individual)
 
-        popLength = int((self.labyWidth+self.labyHeight)*0.75)
+        popLength = int((self.labyWidth+self.labyHeight)*0.25)
 
         if popLength > 500:
             popLength = 500
@@ -216,8 +221,8 @@ class LabyrinthAgent(object):
 
         remaining_time = self.max_time_s
 
-        cxProba = 0.05
-        mutProba = 0.1
+        cxProba = 0.25
+        mutProba = 0.75
 
         select_nb = int(popLength/3)
 
@@ -229,9 +234,7 @@ class LabyrinthAgent(object):
         best = []
         winners = []
 
-        lastGenerationTop = []
-
-        lastGenerationTopCount = 1
+        champion = deepcopy(pop[0])
 
         episode_count = 0
 
@@ -272,15 +275,13 @@ class LabyrinthAgent(object):
                 # replace weaknest individuals with offspring
                 pop[:len(offspring)] = offspring
 
-                if len(best) > 0:
-                    pop += deepcopy(best)
 
-                if len(lastGenerationTop) > 0 and episode_count > self.labyHeight and episode_count % 5 == 0:
-                    pop += lastGenerationTop
+                if champion is not None and episode_count > self.labyHeight and episode_count % 5 == 0:
+                    pop.append(deepcopy(champion))
 
                 if episode_count > self.labyHeight-1:
-                    lastGenerationTop = deepcopy(pop[-lastGenerationTopCount:])
-
+                    if champion.fitness.values[0] > pop[-1].fitness.values[0]:
+                        champion = deepcopy(pop[-1])
 
                 # for a winner, the manhattan distance from the last cell to the end is 0
                 winners = [
