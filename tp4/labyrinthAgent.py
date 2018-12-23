@@ -56,6 +56,10 @@ class LabyrinthAgent(object):
                     (absoluteCoorPath[-1][0]-1, absoluteCoorPath[-1][1]))
         return absoluteCoorPath
 
+    def manhattanDistanceToEnd(self, cell):
+        return (abs(self.end_cell[0]-cell
+                    [0])+abs(self.end_cell[1]-cell[1]))
+
     def testCellSurrounded(self, cell):
         '''
         Raises an exception if a cell is surrounded by walls
@@ -81,38 +85,77 @@ class LabyrinthAgent(object):
                     and not (coord[0] == previous_cellY and coord[1] == previous_cellX)):
                 notValid = False
 
-    def fitness(self, individual):
-        self.purge_genome(individual)
+    def fitness(self, individual, purge=False):
+        if purge:
+            self.purge_genome(individual)
         absoluteCoorPath = self.decodePath(individual)
 
         fitness = len(individual)
 
         # = 0 if end cell is reached
-        fitness += (abs(self.end_cell[0]-absoluteCoorPath[-1]
-                        [0])+abs(self.end_cell[1]-absoluteCoorPath[-1][1]))
+        fitness += self.manhattanDistanceToEnd(absoluteCoorPath[-1])
 
         return (fitness,)
 
-    def generate_gene(self, cell=None):
+    def generate_first_gene(self, start_cell):
         possible_choices = ['L', 'D', 'R', 'U']
 
-        if cell is not None:
-            if cell[0] == 0 or self.grid[cell[0]-1, cell[1]] == 1:
-                possible_choices.remove('U')
-            if cell[1] == 0 or self.grid[cell[0], cell[1]-1] == 1:
-                possible_choices.remove('L')
-            if cell[0] == self.labyHeight-1 or self.grid[cell[0]+1, cell[1]] == 1:
-                possible_choices.remove('D')
-            if cell[1] == self.labyWidth-1 or self.grid[cell[0], cell[1]+1] == 1:
-                possible_choices.remove('R')
+        cell = start_cell
+        if cell[0] == 0 or self.grid[cell[0]-1, cell[1]] == 1:
+            possible_choices.remove('U')
+        if cell[1] == 0 or self.grid[cell[0], cell[1]-1] == 1:
+            possible_choices.remove('L')
+        if cell[0] == self.labyHeight-1 or self.grid[cell[0]+1, cell[1]] == 1:
+            possible_choices.remove('D')
+        if cell[1] == self.labyWidth-1 or self.grid[cell[0], cell[1]+1] == 1:
+            possible_choices.remove('R')
 
         gene = random.choice(possible_choices)
+        return gene
+
+    def generate_gene(self, individual=None):
+        possible_choices = ['L', 'D', 'R', 'U']
+
+        if individual is not None:
+            if len(individual) > self.labyHeight+self.labyWidth:
+                return "CUT"
+            path = self.decodePath(individual)
+            cell = path[-1]
+            if cell[0] == 0 or self.grid[cell[0]-1, cell[1]] == 1 or (cell[0]-1, cell[1]) in path:
+                possible_choices.remove('U')
+            if cell[1] == 0 or self.grid[cell[0], cell[1]-1] == 1 or (cell[0], cell[1]-1) in path:
+                possible_choices.remove('L')
+            if cell[0] == self.labyHeight-1 or self.grid[cell[0]+1, cell[1]] == 1 or (cell[0]+1, cell[1]) in path:
+                possible_choices.remove('D')
+            if cell[1] == self.labyWidth-1 or self.grid[cell[0], cell[1]+1] == 1 or (cell[0], cell[1]+1) in path:
+                possible_choices.remove('R')
+
+        if len(possible_choices) > 0:
+            if individual is not None:
+                directionsWithScores = {}
+                for direction in possible_choices:
+                    directionsWithScores[direction] = self.manhattanDistanceToEnd(
+                        self.decodePath(direction, cell)[-1])
+
+                if random.random() < 0.75:
+                    worstChoice = max(directionsWithScores,
+                                      key=directionsWithScores.get)
+                    if len(possible_choices) > 1:
+                        possible_choices.remove(worstChoice)
+                else:
+                    bestChoice = min(directionsWithScores,
+                                     key=directionsWithScores.get)
+                    return bestChoice
+
+            gene = random.choice(possible_choices)
+        else:
+            gene = "CUT"
 
         return gene
 
     def purge_genome(self, individual):
         '''
-        if finds a invalide gene (wall/outside of the grid), cuts off the genes from the invalid gene to the end of the individual dna
+        if finds a invalide gene (wall/outside of the grid/passing through already passed cell), cuts off the genes from the invalid gene to the end of the individual dna
         '''
         # max allowed size of an individual is the manhattan distance from one corner to the opposite one
         max_size = self.labyWidth+self.labyHeight
@@ -128,13 +171,13 @@ class LabyrinthAgent(object):
             if cell == self.end_cell:
                 individual[i:] = []
 
-            # eliminate path portion that passes through same cell as a previous one
-            if cell in absolutePath[:i]:
+            # eliminates path portion after invalid cell (outside grid, wall)
+            if cell[0] < 0 or cell[1] < 0 or cell[0] >= self.labyHeight or cell[1] >= self.labyWidth or self.grid[cell] == 1:
                 individual[i-1:] = []
                 break
 
-            # eliminates path portion after invalid cell (outside grid, wall)
-            if cell[0] < 0 or cell[1] < 0 or cell[0] >= self.labyHeight or cell[1] >= self.labyWidth or self.grid[cell] == 1:
+            # eliminate path portion that passes through same cell as a previous one
+            if cell in absolutePath[:i]:
                 individual[i-1:] = []
                 break
 
@@ -149,7 +192,8 @@ class LabyrinthAgent(object):
         toolbox.register("mate", tools.cxOnePoint)
         toolbox.register("mutate", tools.mutShuffleIndexes, indpb=0.05)
         toolbox.register("select", tools.selRoulette)
-        toolbox.register("init_gene", self.generate_gene, self.start_cell)
+        toolbox.register(
+            "init_gene", self.generate_first_gene, self.start_cell)
         toolbox.register("init_individual", tools.initRepeat,
                          creator.Individual, toolbox.init_gene, 1)
         toolbox.register("init_population", tools.initRepeat,
@@ -160,8 +204,12 @@ class LabyrinthAgent(object):
         else:
             time_factor = self.max_time_s
 
-        pop = toolbox.init_population(
-            n=self.labyHeight*self.labyWidth*time_factor)
+        popLength = int((self.labyWidth+self.labyHeight)*10)
+
+        if popLength > 750:
+            popLength = 750
+
+        pop = toolbox.init_population(n=popLength)
 
         # Evaluate the entire population
         fitnesses = map(lambda ind: toolbox.fitness(
@@ -171,19 +219,21 @@ class LabyrinthAgent(object):
 
         remaining_time = self.max_time_s
         cxProba = 0.7
-        mutProba = 0.1
+        mutProba = 0.2
 
-        select_nb = int(len(pop)/10)
+        select_nb = int(popLength/5)
 
         if select_nb < 4:
             select_nb = 4
+        elif select_nb > 150:
+            select_nb = 150
 
         best = []
         winners = []
 
         lastGenerationTop = []
 
-        lastGenerationTopCount = 1
+        lastGenerationTopCount = 2
 
         episode_count = 0
 
@@ -192,7 +242,9 @@ class LabyrinthAgent(object):
                 episode_count += 1
 
                 for ind in pop:
-                    ind.append(self.generate_gene())
+                    newGene = self.generate_gene(ind)
+                    if newGene != "CUT":
+                        ind.append(newGene)
 
                 offspring = toolbox.select(pop, select_nb)
 
@@ -211,7 +263,8 @@ class LabyrinthAgent(object):
                 for ind, fit in zip(pop, fitnesses):
                     ind.fitness.values = fit
 
-                fitnesses = map(lambda ind: toolbox.fitness(ind), offspring)
+                fitnesses = map(lambda ind: toolbox.fitness(
+                    ind, purge=True), offspring)
                 for ind, fit in zip(offspring, fitnesses):
                     ind.fitness.values = fit
 
@@ -236,6 +289,9 @@ class LabyrinthAgent(object):
                     winners = sorted(
                         winners, key=lambda ind: ind.fitness.values[0])
                     best.append(deepcopy(winners[0]))
+                    if len(best) == 1:
+                        print(
+                            f"Found first solution after {self.max_time_s-remaining_time} s")
 
             remaining_time -= t.interval
 

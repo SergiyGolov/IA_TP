@@ -99,7 +99,7 @@ if __name__ == "__main__":
     else:
         WIDTH = 5
         HEIGHT = 5
-        MAX_TIME = 0.25
+        MAX_TIME = 0.5
         grid, start_cell, end_cell = generate_labyrinth(WIDTH, HEIGHT)
 
     solve_labyrinth(grid, start_cell, end_cell, MAX_TIME)
