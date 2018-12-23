@@ -35,6 +35,7 @@ class LabyrinthAgent(object):
         self.labyHeight = grid.shape[0]
         self.testCellSurrounded(self.start_cell)
         self.testCellSurrounded(self.end_cell)
+        self.pathLimit = int((self.labyHeight+self.labyWidth)*1.5)
 
     def decodePath(self, relativePath, start=None):
         if start == None:
@@ -61,9 +62,9 @@ class LabyrinthAgent(object):
                     [0])+abs(self.end_cell[1]-cell[1]))
 
     def testCellSurrounded(self, cell):
-        '''
+        """
         Raises an exception if a cell is surrounded by walls
-        '''
+        """
 
         possible_choices = ['L', 'D', 'R', 'U']
 
@@ -93,14 +94,14 @@ class LabyrinthAgent(object):
         fitness = len(individual)
 
         # = 0 if end cell is reached
-        fitness += self.manhattanDistanceToEnd(absoluteCoorPath[-1])
+        fitness += self.manhattanDistanceToEnd(absoluteCoorPath[-1])*25
 
         return (fitness,)
 
-    def generate_first_gene(self, start_cell):
+    def generate_first_gene(self):
         possible_choices = ['L', 'D', 'R', 'U']
 
-        cell = start_cell
+        cell = self.start_cell
         if cell[0] == 0 or self.grid[cell[0]-1, cell[1]] == 1:
             possible_choices.remove('U')
         if cell[1] == 0 or self.grid[cell[0], cell[1]-1] == 1:
@@ -117,7 +118,7 @@ class LabyrinthAgent(object):
         possible_choices = ['L', 'D', 'R', 'U']
 
         if individual is not None:
-            if len(individual) > self.labyHeight+self.labyWidth:
+            if len(individual) > self.pathLimit:
                 return "CUT"
             path = self.decodePath(individual)
             cell = path[-1]
@@ -131,7 +132,7 @@ class LabyrinthAgent(object):
                 possible_choices.remove('R')
 
         if len(possible_choices) > 0:
-            if individual is not None:
+            if individual is not None and random.random() < 0.75:
                 directionsWithScores = {}
                 for direction in possible_choices:
                     directionsWithScores[direction] = self.manhattanDistanceToEnd(
@@ -154,14 +155,12 @@ class LabyrinthAgent(object):
         return gene
 
     def purge_genome(self, individual):
-        '''
+        """
         if finds a invalide gene (wall/outside of the grid/passing through already passed cell), cuts off the genes from the invalid gene to the end of the individual dna
-        '''
-        # max allowed size of an individual is the manhattan distance from one corner to the opposite one
-        max_size = self.labyWidth+self.labyHeight
+        """
 
-        if len(individual) > max_size:
-            individual[max_size:] = []
+        if len(individual) > self.pathLimit:
+            individual[self.pathLimit-1:] = []
 
         absolutePath = self.decodePath(individual)
 
@@ -169,7 +168,7 @@ class LabyrinthAgent(object):
         for cell in absolutePath:
             # ignore path after solution
             if cell == self.end_cell:
-                individual[i:] = []
+                individual[i+1:] = []
 
             # eliminates path portion after invalid cell (outside grid, wall)
             if cell[0] < 0 or cell[1] < 0 or cell[0] >= self.labyHeight or cell[1] >= self.labyWidth or self.grid[cell] == 1:
@@ -190,24 +189,22 @@ class LabyrinthAgent(object):
         creator.create("FitnessMin", base.Fitness, weights=(-1.0,))
         creator.create("Individual", list, fitness=creator.FitnessMin)
         toolbox.register("mate", tools.cxOnePoint)
-        toolbox.register("mutate", tools.mutShuffleIndexes, indpb=0.05)
+        toolbox.register("mutate", tools.mutShuffleIndexes, indpb=0.1)
         toolbox.register("select", tools.selRoulette)
         toolbox.register(
-            "init_gene", self.generate_first_gene, self.start_cell)
+            "init_gene", self.generate_first_gene)
         toolbox.register("init_individual", tools.initRepeat,
                          creator.Individual, toolbox.init_gene, 1)
         toolbox.register("init_population", tools.initRepeat,
                          list, toolbox.init_individual)
 
-        if self.max_time_s < 1:
-            time_factor = 1
-        else:
-            time_factor = self.max_time_s
+        popLength = int((self.labyWidth+self.labyHeight)*0.75)
 
-        popLength = int((self.labyWidth+self.labyHeight)*10)
+        if popLength > 500:
+            popLength = 500
 
-        if popLength > 750:
-            popLength = 750
+        if popLength < 10:
+            popLength = 10
 
         pop = toolbox.init_population(n=popLength)
 
@@ -218,10 +215,11 @@ class LabyrinthAgent(object):
             ind.fitness.values = fit
 
         remaining_time = self.max_time_s
-        cxProba = 0.7
-        mutProba = 0.2
 
-        select_nb = int(popLength/5)
+        cxProba = 0.05
+        mutProba = 0.1
+
+        select_nb = int(popLength/3)
 
         if select_nb < 4:
             select_nb = 4
@@ -233,7 +231,7 @@ class LabyrinthAgent(object):
 
         lastGenerationTop = []
 
-        lastGenerationTopCount = 2
+        lastGenerationTopCount = 1
 
         episode_count = 0
 
@@ -257,12 +255,13 @@ class LabyrinthAgent(object):
                 for ind in offspring:
                     if len(ind) > 1:
                         if random.random() < mutProba:
-                            ind = toolbox.mutate(ind)[0]
+                            toolbox.mutate(ind)
 
                 fitnesses = map(lambda ind: toolbox.fitness(ind), pop)
                 for ind, fit in zip(pop, fitnesses):
                     ind.fitness.values = fit
 
+                # because these individuals are generated randomly by the genetic algorithm, we have to purge their dna
                 fitnesses = map(lambda ind: toolbox.fitness(
                     ind, purge=True), offspring)
                 for ind, fit in zip(offspring, fitnesses):
@@ -270,18 +269,20 @@ class LabyrinthAgent(object):
 
                 pop = sorted(pop, key=lambda ind: -1*ind.fitness.values[0])
 
+                # replace weaknest individuals with offspring
                 pop[:len(offspring)] = offspring
 
                 if len(best) > 0:
                     pop += deepcopy(best)
 
-                if len(lastGenerationTop) > 0 and episode_count > self.labyHeight:
+                if len(lastGenerationTop) > 0 and episode_count > self.labyHeight and episode_count % 5 == 0:
                     pop += lastGenerationTop
 
                 if episode_count > self.labyHeight-1:
                     lastGenerationTop = deepcopy(pop[-lastGenerationTopCount:])
 
-                # it means that the manhattan distance from the last cell to the end is 0
+
+                # for a winner, the manhattan distance from the last cell to the end is 0
                 winners = [
                     ind for ind in pop if ind.fitness.values[0] == len(ind)]
 
@@ -295,7 +296,7 @@ class LabyrinthAgent(object):
 
             remaining_time -= t.interval
 
-        if(len(best) > 0):
+        if len(best) > 0:
             best = sorted(best, key=lambda ind: ind.fitness.values[0])
             solution = self.decodePath(best[0])
             print(f"path: {solution}")
@@ -307,5 +308,6 @@ class LabyrinthAgent(object):
             pop = sorted(pop, key=lambda ind: ind.fitness.values[0])
             partialSolution = self.decodePath(pop[0])
             print(f"total episodes: {episode_count}")
+            print(f"Best fitness: {pop[0].fitness.values[0]}")
             print("No solution has been found")
             return partialSolution
