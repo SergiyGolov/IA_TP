@@ -5,6 +5,10 @@
     - 1er argument: chemin vers fichier de grille
     - 2ème argument: condition d'arrêt en secondes
     - Si pas d'arguments, une grille aléatoire 5x5 sera utilisée avec comme condition d'arrêt 0.5 secondes
+- `/tp4_Labyrinth_Sergiy_Goloviatinski.py random 7 4`
+    - si 1er argument == "random"
+    - le 2ème argument est le côté de la grille
+    - le 3ème argument est la condition d'arrêt en secondes
 ### Choix des hyperparamètres
 #### Fonction de fitness
 - Elle se base sur la distance de manhattan entre la dernière case du chemin + la longueur du chemin
@@ -29,4 +33,6 @@
 - Les meilleurs individus sont sauvegardés et réinjectés dans la population tous les 5 episodes
 
 ### Conclusion
-- Ma solution fonctionne très bien avec les grilles fournies jusqu'à 30x30 y compris, par contre pour la grille 40x40 ça ne trouve pas de solutions, peut être est-ce lié à ma façon de valider un chemin qui ferait trop de parcours sur les différents individus et qui serait trop chronophage à cause de sa complexité algorithmique
+- Ma solution fonctionne très bien avec les grilles fournies avec un temps raisonnable (~ ordre de grandeur comme spécifié dans le powerpoint est largement suffisant, souvent trouve 1ère solution avant 1 seconde) jusqu'à 30x30 y compris, par contre pour la grille 40x40 ça ne trouve pas de solutions, peut être est-ce lié à ma façon de valider un chemin qui ferait trop de parcours sur les différents individus et qui serait trop chronophage à cause de sa complexité algorithmique
+- Les conditions particulières issus d'une génération aléatoire de la grille sont gérés
+- Le programme est résistant aux crash

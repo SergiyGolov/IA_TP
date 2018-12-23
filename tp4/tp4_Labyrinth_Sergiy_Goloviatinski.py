@@ -88,7 +88,7 @@ def solve_labyrinth(grid, start_cell, end_cell, max_time_s):
 
 if __name__ == "__main__":
 
-    if len(sys.argv) > 2:
+    if len(sys.argv) == 3:
         grid = np.load(sys.argv[1])
         start_cell = (0, 0)
         h = grid.shape[0]
@@ -96,7 +96,12 @@ if __name__ == "__main__":
         end_cell = (h - 1, w - 1)
         WIDTH = w
         HEIGHT = h
-        MAX_TIME = int(sys.argv[2])
+        MAX_TIME = float(sys.argv[2])
+    elif len(sys.argv) == 4 and sys.argv[1]=="random":
+        WIDTH=int(sys.argv[2])
+        HEIGHT=int(sys.argv[2])
+        MAX_TIME=float(sys.argv[3])
+        grid, start_cell, end_cell = generate_labyrinth(WIDTH, HEIGHT)
     else:
         WIDTH = 5
         HEIGHT = 5
